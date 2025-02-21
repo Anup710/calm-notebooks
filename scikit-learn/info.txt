@@ -1,0 +1,12 @@
+section I: high level topics and scope of scikit learn in ML
+
+Section II: preprocessing data
+
+Section III: Metrics - performance of a model; inbuilt and custom 
+
+Section IV: meta-estimators - post processing of outputs 
+
+Section V: Human learn - more human way of processing and visualising information 
+
+Link to tutorial: https://youtu.be/0B5eIE_1vpU?si=lW7jotRgy1WFP0gw
+
