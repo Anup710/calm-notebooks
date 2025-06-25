@@ -4,8 +4,10 @@ import matplotlib.pyplot as plt
 
 class Linear:
 
-    def __init__(self, fan_in, fan_out, bias = True):
-        self.weight = torch.randn((fan_in, fan_out), generator=g) * 1/fan_in**0.5
+    def __init__(self, fan_in, fan_out, random_seed = 46678587847, bias = True):
+        # pytorch expects a seed from torch.Generator(), not an integer directly!
+        gen = torch.Generator().manual_seed(random_seed) 
+        self.weight = torch.randn((fan_in, fan_out), generator=gen) * 1/fan_in**0.5
         self.bias = torch.zeros(fan_out) if bias else None
     
     def __call__(self, x):
@@ -43,7 +45,7 @@ class BatchNorm1d:
         # apply to data
         xhat = (x-xmean)/torch.sqrt(xvar + self.eps)
 
-        self.out = self.gamma * xhat + self.beta # gain * xhat + bias 
+        self.out = self.gamma * xhat + self.beta # bngain * xhat + bnbias 
  
         if self.training:
             with torch.no_grad():
@@ -62,3 +64,42 @@ class Tanh:
         return self.out
     def parameters(self):
         return []
+    
+class Embedding:
+
+    def __init__(self, num_embeddings, embed_dim):
+        self.weight = torch.randn((num_embeddings,embed_dim))
+        
+    def __call__(self, Xb):
+        self.emb = self.weight[Xb]
+        return self.emb
+    
+    def parameters(self):
+        return [self.weight]
+
+
+class Flatten:
+
+    def __call__(self, x):
+        self.out = x.view(x.shape[0], -1)
+        return self.out
+    
+    def parameters(self):
+        return []
+    
+#-----------------------------------------
+
+class Sequential:
+
+    def __init__(self, layers):
+        self.layers = layers
+    
+    def __call__(self, x):
+        for layer in self.layers:
+            x = layer(x)
+        self.out = x
+        return self.out
+    
+    def parameters(self):
+        #get all parameters and stretch them out into a list. 
+        return [p for layer in self.layers for p in layer.parameters()]
