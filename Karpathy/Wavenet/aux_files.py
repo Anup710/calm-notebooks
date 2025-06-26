@@ -35,9 +35,18 @@ class BatchNorm1d:
         self.running_var = torch.ones(size)
     
     def __call__(self, x):
+        # if self.training:
+        #     xmean = x.mean(dim = 0, keepdim = True)
+        #     xvar = x.var(dim = 0, keepdim = True)
+
+        # After fixing bug -- we depart from pytorch.nn.Batchnorm1d API
         if self.training:
-            xmean = x.mean(dim = 0, keepdim = True)
-            xvar = x.var(dim = 0, keepdim = True)
+            if x.ndim == 2:
+                dim = 0
+            elif x.ndim == 3:
+                dim = (0,1)
+            xmean = x.mean(dim, keepdim=True) # batch mean
+            xvar = x.var(dim, keepdim=True) # batch variance
 
         else: 
             xmean = self.running_mean
@@ -71,8 +80,8 @@ class Embedding:
         self.weight = torch.randn((num_embeddings,embed_dim))
         
     def __call__(self, Xb):
-        self.emb = self.weight[Xb]
-        return self.emb
+        self.out = self.weight[Xb]
+        return self.out
     
     def parameters(self):
         return [self.weight]
@@ -103,3 +112,23 @@ class Sequential:
     def parameters(self):
         #get all parameters and stretch them out into a list. 
         return [p for layer in self.layers for p in layer.parameters()]
+    
+# --------------------------------------
+
+class FlattenConsecutive:
+  
+  def __init__(self, n):
+    # n = number of consecutive chars to be used as context/ grouped
+    self.n = n
+    
+  def __call__(self, x):
+    B, T, C = x.shape
+    x = x.view(B, T//self.n, C*self.n)
+    if x.shape[1] == 1:
+      # to counter spurious dimension in case 3D is actually 2D - check torch.squeeze documentation for clarity. 
+      x = x.squeeze(1)
+    self.out = x
+    return self.out
+  
+  def parameters(self):
+    return []
