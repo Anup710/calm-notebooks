@@ -12,6 +12,7 @@ eval_interval = 300
 learning_rate = 1e-2
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 eval_iters = 200
+n_embd = 32
 # ------------
 
 torch.manual_seed(1337)
@@ -59,19 +60,27 @@ def estimate_loss():
     model.train()
     return out
 
-# super simple bigram model
+# super simple bigram model - introduce position embeddings too but not used in this bigram class. 
 class BigramLanguageModel(nn.Module):
 
     def __init__(self, vocab_size):
         super().__init__()
-        # each token directly reads off the logits for the next token from a lookup table
-        self.token_embedding_table = nn.Embedding(vocab_size, vocab_size)
+        # all lookup tables 
+        self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
+        self.position_embedding_table = nn.Embedding(block_size, n_embd)
+        self.lm = nn.Linear(n_embd, vocab_size) # since logits are prob over vocab_size need to transform
 
     def forward(self, idx, targets=None):
+        
+        B,T = idx.shape
 
         # idx and targets are both (B,T) tensor of integers
-        logits = self.token_embedding_table(idx) # (B,T,C)
-
+        tok_emb = self.token_embedding_table(idx) # (B,T,n_embd)
+        pos_emb = self.position_embedding_table(torch.arange(T, device=device)) # (T, n_embd) -- nn.Embedding has a __call__ method
+        # overall encoding includes identity AND position
+        x = tok_emb + pos_emb # (B,T,n_embd)
+        logits = self.lm(x) # (B,T,vocab_size)
+  
         if targets is None:
             loss = None
         else:
