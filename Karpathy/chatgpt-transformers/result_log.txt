@@ -1,0 +1,29 @@
+Global hyperparameters:
+hyperparameters
+batch_size = 32 
+block_size = 8    # context length
+max_iters = 5000
+eval_interval = 300
+learning_rate = 1e-3
+n_embd = 32
+
+-------------------------------------------------------------
+Single head: 
+
+
+step 0: train loss 4.1276, val loss 4.1319
+step 4800: train loss 2.3846, val loss 2.4042
+
+
+-------------------------------------------------------------
+4 heads: (head_size = 16)
+
+step 0: train loss 4.2125, val loss 4.2108
+step 4800: train loss 2.2476, val loss 2.2756
+
+-------------------------------------------------------------
+feed forward layer added: 
+
+step 0: train loss 4.2142, val loss 4.2134
+step 4800: train loss 2.2664, val loss 2.2843
+
