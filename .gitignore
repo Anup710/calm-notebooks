@@ -1,2 +1,5 @@
 /venv
 /.venv
+# within FAST_API
+FAST_API/venv
+FAST_API/__pycache__
