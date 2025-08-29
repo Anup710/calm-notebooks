@@ -17,3 +17,6 @@ Tokenization is at the heart of much weirdness of LLMs. Do not brush it off.
 - Why should I prefer to use YAML over JSON with LLMs? __Tokenization__.<br>
 - Why is LLM not actually end-to-end language modeling? __Tokenization__.<br>
 - What is the real root of suffering? __Tokenization__.<br>
+
+
+In this repo we cover the besics of .encode() and .decode() functions used in tokenization through the lens of tiktoken in depth, and in sentencepiece, at a high level. 
