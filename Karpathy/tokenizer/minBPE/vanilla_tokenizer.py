@@ -37,8 +37,7 @@ class RegularTokenizer(BaseTokenizer):
             
             # append max pair to in_merges and in_vocab
             in_merges[max_pair] = 256 + m
-            in_vocab[idx] = max_pair[0] + max_pair[1]
-
+            in_vocab[idx] = in_vocab[max_pair[0]] + in_vocab[max_pair[1]]  # Concatenate the bytes
             if verbose:
                 print(f"merge {m+1}/{num_merges}: {max_pair} -> {idx} ({in_vocab[idx]}) had {stats[max_pair]} occurrences")
 
@@ -53,6 +52,8 @@ class RegularTokenizer(BaseTokenizer):
         """"returns tokens after applying learnt merges on text during inference"""
         
         tokens = list(text.encode("utf-8"))
+        print(f"Length before BPE merge = {len(tokens)}")
+
         while len(tokens) >= 2: 
             stats = get_stats(tokens)
             # min over keys of dict stats, key = index of that key pair; "inf" applied to ensure merges
@@ -63,7 +64,10 @@ class RegularTokenizer(BaseTokenizer):
             # else merge whatever is available
             idx = self.merges[pair]
             tokens = merge(tokens, pair, idx)
-        return tokens   
+        
+        print(f"Length after BPE merge = {len(tokens)}")
+        
+        # return tokens   
 
 
     def decode(self, ids):
@@ -78,12 +82,22 @@ class RegularTokenizer(BaseTokenizer):
 
 if __name__ == "__main__":
     # test code
+    # print(__name__)
     reg = RegularTokenizer()
     print(reg.dummy)
 
-    # infer on base vocab without training -- to check logic validity
-    toy_text = "Hi my name is Cyril Mahφpa$ 🫠"
-    Tok = RegularTokenizer()
-    print(Tok.encode(toy_text))
-    print((Tok.decode(Tok.encode(toy_text))) == toy_text)
+    with open("tests/novakdjokovic.txt", "r", encoding="utf-8") as f1:
+        training_text = f1.read()
+        
+    RegTok = RegularTokenizer()
+    RegTok.train(training_text, 300, True)
+
+    # lets encode the taylorswift.txt file
+    with open("tests/taylorswift.txt", "r", encoding="utf-8") as f2:
+        inference_text = f2.read()
+    
+    # print(f"Encoded text:\n{RegTok.encode(inference_text)}")
+    RegTok.encode(inference_text)
+    print(RegTok.vocab)
+
 

@@ -5,10 +5,14 @@
 
 import unicodedata 
 
-def get_stats(ids):
-    """returns a dict containing pair:count mapping"""
+def get_stats(ids, counts = None):
+    """
+    Given a list of integers, return a dictionary of counts of consecutive pairs
+    Example: [1, 2, 3, 1, 2] -> {(1, 2): 2, (2, 3): 1, (3, 1): 1}
+    Optionally allows to update an existing dictionary of counts
+    """
     
-    counts = {}
+    counts = {} if counts is None else counts
     for pair in zip(ids, ids[1:]):
         counts[pair] = counts.get(pair , 0) + 1 # fetch existing value or 0 and add if pair is encountered
 
