@@ -36,6 +36,7 @@ class CausalSelfAttention(nn.Module):
         self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd)
         # output projection
         self.c_proj = nn.Linear(config.n_embd, config.n_embd)
+        self.c_proj.NANOGPT_SCALE_INIT = 1
         # regularization
         self.n_head = config.n_head
         self.n_embd = config.n_embd
@@ -71,6 +72,7 @@ class MLP(nn.Module):
         self.c_fc = nn.Linear(config.n_embd, 4 * config.n_embd) # expand 
         self.gelu = nn.GELU(approximate="tanh")
         self.c_proj = nn.Linear(4* config.n_embd, config.n_embd) # return to original shape
+        self.c_proj.NANOGPT_SCALE_INIT = 1
 
     def forward(self, x):
         x = self.c_fc(x)
@@ -112,10 +114,23 @@ class GPT(nn.Module):
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False) # final linear layer 
         self.enc = tiktoken.get_encoding('gpt2') # used during sampling/ generation
 
-        # self.transformer.wte.weight = self.lm_head.weight # WEIGHT - TYING: see later (helps is reducing params, space)
+        self.transformer.wte.weight = self.lm_head.weight # WEIGHT - TYING
+        
+        # init params - refer flow.md for details on below function
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            std = 0.02
+            if hasattr(module, 'NANOGPT_SCALE_INIT'):
+                std *= (2 * self.config.n_layer) ** -0.5 # 2* because twice residual in each block 
+            torch.nn.init.normal_(module.weight, mean=0.0, std=std)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
 
-    
     def forward(self, idx, targets = None):
         # return logits for next token - generate using separate function 
         B,T = idx.shape
@@ -220,48 +235,63 @@ class GPT(nn.Module):
         
         return out
 
+class DataLoaderLite:
 
+    def __init__(self, B, T):
+        self.B = B
+        self.T = T
+
+        enc = tiktoken.get_encoding("gpt2")
+        with open("input.txt", 'r') as f:
+            text = f.read()
+        self.tokens = torch.tensor(enc.encode(text))
+
+        print(f"Total tokens in dataset = {len(self.tokens)}")
+        print(f"Max batches in 1 epoch = {len(self.tokens) // (B*T)}")
+
+        self.current_position = 0
+
+    def next_batch(self):
+        B, T = self.B, self.T
+        buf = self.tokens[self.current_position : self.current_position + B*T +1]
+
+        x = buf[:-1].view(B,T) # inputs
+        y = buf[1:].view(B,T) # outputs
+
+        #advance current position tracker
+        self.current_position += B*T
+        # if loading the next batch would be out of bounds, reset
+        if self.current_position + (B * T + 1) > len(self.tokens):
+            self.current_position = 0
+        return x, y
+        
 # -----------------------------------------------------------------------------
 
 if __name__ == "__main__":
 
     device = get_device()
-    device = "cpu" # TEMP OVERRIDE
-
-    # GET a batch of data
-    enc = tiktoken.get_encoding("gpt2")
-    with open("input.txt", 'r') as f:
-        text = f.read()
-    text = text[:1000]
-    tokens = enc.encode(text)
-
-    B,T = 4,32
-    # generate x and y using .view trick
-    buf = torch.tensor(tokens[:B*T+1])
-    buf = buf.to(device)
-    x = buf[:-1].view(B,T)
-    y = buf[1:].view(B,T) # y is x shifted right by 1 position
-
 
     # get logits
     model = GPT(GPTConfig()) #- random weights init
     model.eval()
     model.to(device)
     
-    # logits, loss = model(x, y)
-    # print(f"loss = {loss.item()}")
+    B,T = 4,32
+    train_loader = DataLoaderLite(B,T)
 
     # optimizer - training the network 
     optimizer = torch.optim.AdamW(model.parameters(), lr = 3e-4)
+
+    #training loop
     for i in range(50):
+        x,y = train_loader.next_batch()
+        x, y = x.to(device), y.to(device)
         optimizer.zero_grad()
         logits, loss = model(x,y)
         loss.backward()
         optimizer.step()
         if i%5==0:
             print(f"loss at step {i} = {loss.item()}")
-
-
 
 
     #verify total no of parameters
