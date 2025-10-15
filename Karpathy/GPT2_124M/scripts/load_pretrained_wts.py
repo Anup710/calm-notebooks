@@ -199,13 +199,16 @@ class GPT(nn.Module):
                 xcol = torch.gather(topk_indices, -1, ix)
                 idx = torch.cat((idx, xcol), dim=1)
 
+        out = []
         # decode generated tokens
         for i in range(num_return_sequences):
             tokens = idx[i, :max_length].tolist()
             decoded = self.enc.decode(tokens)
+            out.append(decoded)
+
             print(">", decoded)
         
-        return decoded
+        return out
 
 
 # -----------------------------------------------------------------------------
@@ -229,5 +232,9 @@ if __name__ == "__main__":
     total_params_M = sum(p.numel() for p in model.parameters()) / 1e6
     print(f"Total parameters: {total_params_M:.2f}M")
 
-    model.generate(("Hello, I'm a language model,"), num_return_sequences=5, max_length=30) # print statement included within generate
+    out = model.generate(("Hello, I'm a language model,"), num_return_sequences=5, max_length=30) # print statement included within generate
+    # write the model output to a file
+    with open('output.txt', 'w') as f:
+        for o in out:
+            f.write(o + '\n')
 
