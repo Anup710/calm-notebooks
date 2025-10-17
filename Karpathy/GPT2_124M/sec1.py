@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn 
 from torch.nn import functional as F
 import tiktoken
+import time
 
 def get_device():
     # attempt to autodetect the device
@@ -284,14 +285,17 @@ if __name__ == "__main__":
 
     #training loop
     for i in range(50):
+        t0 = time.time()
         x,y = train_loader.next_batch()
         x, y = x.to(device), y.to(device)
         optimizer.zero_grad()
         logits, loss = model(x,y)
         loss.backward()
         optimizer.step()
-        if i%5==0:
-            print(f"loss at step {i} = {loss.item()}")
+        torch.cuda.synchronize() # allow gpu bandwidth to catch up and clear the queue of operations
+        t1 = time.time()
+        dt = (t1-t0)*1000 # time difference in milliseconds 
+        print(f"step {i}: loss = {loss.item()}, dt: {dt:.2f} ms")
 
 
     #verify total no of parameters
