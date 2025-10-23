@@ -1,3 +1,5 @@
+<b><span style="color:red;">NOTE:</span></b> Performance gains are relative to previous step and not absolute. 
+
 1. Assemble architecture of gpt2 to load pretrain weights 
 
     1. inference with actual openai weights
@@ -22,5 +24,10 @@
 
     1. Crank up to (B = 16,T= 1024). Take a baseline reading on time required to run each step. implmenent `torch.cuda.synchronize()`. Handle OOM errors by choosing a bigger GPU or a smaller batch size for baseline. 
     2. On changing precision: [read this pytorch documentation page](https://docs.pytorch.org/docs/main/notes/cuda.html#tensorfloat-32-tf32-on-ampere-and-later-devices) for latest apis. Just adding `torch.backends.fp32_precision = "tf32"` doesnt make the expected jump in tokens/sec - since tensors are still float32 even if operations are tf32. 
-    3. BF16 and [torch.autocast()](https://docs.pytorch.org/docs/stable/amp.html) of forward pass and loss ONLY. 
-    4. Run `torch.compile()` on the model: [read more](https://docs.pytorch.org/tutorials/intermediate/torch_compile_tutorial.html)
+    3. BF16 and [torch.autocast()](https://docs.pytorch.org/docs/stable/amp.html) of forward pass and loss ONLY. __~30% gain__
+    4. Run `torch.compile()` on the model: [read more](https://docs.pytorch.org/tutorials/intermediate/torch_compile_tutorial.html) __~ 60% gain__
+    5. Flash attention using online softmax calculation, never creating the `att` tensor explicitly __~25% gain__
+    6. justification for vocab size, batch size, good/ ugly numbers (powers of 2 are better)
+        - Adding a few spurious rows by changing vocab_size: 50257 $\rightarrow$ 50304, doesn't break anything because through the optimization, the newtwork learns to drive those probabilities to 0, just like all probs which don't occur in mini-shakespeare
+        - kernels like nice nos for quicker batch processing on gpus/ hbm storage
+        - __~5% gain__
