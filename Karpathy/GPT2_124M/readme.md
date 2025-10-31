@@ -1,11 +1,11 @@
-<b><span style="color:red;">NOTE:</span></b> Performance gains are relative to previous step and not absolute. 
+<span style="color:#FF0000; font-family: 'Bebas Neue'; font-size: 01em;">NOTE:</span> Performance gains are relative to previous step and not absolute. 
 
-1. Assemble architecture of gpt2 to load pretrain weights 
+1. Assemble architecture of gpt2 to load pretrain weights [code](/GPT2_124M/Pretrained_load/)
 
     1. inference with actual openai weights
     2. inference with random weight 
 
-2. Do pre-training on mini-shakespeare
+2. Do pre-training on mini-shakespeare [code](/GPT2_124M/sec1.py)
 
     1. add loss calculation in class GPT and verify uniform random init 
     2. loss.backward and update steps (overfit on a single batch) 
@@ -18,9 +18,9 @@
         - reduces params from 163.04M -> 124.44M
         - loss after 50 iters ~ 7 
     5. Fix initialization: adhere to actual openai gpt2 (infer from code, not mentioned in paper explicitly)
-        - scale residual pathways by $\frac{1}{\sqrt(N)}$, best to be understood [here](https://youtu.be/l8pRSuU81PU?si=pBykX2rcwagxq4io&t=4432). 
+        - scale residual pathways by $\frac{1}{\sqrt(N)}$ or $2 \times$ that, best to be understood [here](https://youtu.be/l8pRSuU81PU?si=pBykX2rcwagxq4io&t=4432). 
 
-3. Precision, scaling batch_size + block_size, tokens/sec and tracking time per step 
+3. Precision, scaling batch_size + block_size, tokens/sec and tracking time per step [code](/GPT2_124M/sec2.py)
 
     1. Crank up to (B = 16,T= 1024). Take a baseline reading on time required to run each step. implmenent `torch.cuda.synchronize()`. Handle OOM errors by choosing a bigger GPU or a smaller batch size for baseline. 
     2. On changing precision: [read this pytorch documentation page](https://docs.pytorch.org/docs/main/notes/cuda.html#tensorfloat-32-tf32-on-ampere-and-later-devices) for latest apis. Just adding `torch.backends.fp32_precision = "tf32"` doesnt make the expected jump in tokens/sec - since tensors are still float32 even if operations are tf32. 
@@ -31,3 +31,17 @@
         - Adding a few spurious rows by changing vocab_size: 50257 $\rightarrow$ 50304, doesn't break anything because through the optimization, the newtwork learns to drive those probabilities to 0, just like all probs which don't occur in mini-shakespeare
         - kernels like nice nos for quicker batch processing on gpus/ hbm storage
         - __~5% gain__
+    7. run on H100 GPU and append results [here](/GPT2_124M/results%20on%20H100%20SXM/)
+
+4.  Hyperparameter tuning and parallelizability on multiple gpus [code](/GPT2_124M/sec3.ipynb)
+
+    1. `AdamW` parameters: $\beta = $[0.99, 0.95], $\epsilon = 10^{-8}$
+    2. Gradient clipping at $\text{max norm} = 1.0 $
+    3. Cosine decay learning rate with warmup
+    4. Changing batch size (not implemented here)
+    5. weight decay, Fused AdamW ` 
+    6. match tokens/batch to ~0.5M as per gpt3-124M papeR USING Gradient accumulation, if GPU memory is a bottleneck
+    7. DDP - distributed data parallel
+        - introduce `ddp_rank`, `world_size` etc. 
+        - modify `DataLoaderLite` class
+

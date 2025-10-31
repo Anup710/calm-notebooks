@@ -314,7 +314,7 @@ if __name__ == "__main__":
     device = get_device()
 
     model = GPT(GPTConfig(vocab_size=50304)) #- random weights init
-    model.eval()
+    # model.eval()
     model.to(device)
     # model = torch.compile(model) # compiles the model 
     
